@@ -6,12 +6,14 @@ var config = require('config')
     ,bus = require('bus')
     ,util = require('util')
     ,logger = require('logger')
-    ,newId = require('node-uuid');
+    ,newId = require('node-uuid')
+    ,validator = require('is-my-json-valid');
 
 module.exports = function(rootApp) {
 
   var waitQueue = {};
 
+  // HTTP request reception
   function requestHandler(channelName) {
     return function(req, res, next) {
       var event = {
@@ -31,11 +33,20 @@ module.exports = function(rootApp) {
     }
   }
 
+  // Message reception and worker execution
   function serviceHandler(responseChannelName, service) {
     return function(event) {
       logger.debug('[service] \'%s.%s\' received \'%s\' event.', service.moduleName, service.name, event.cid);
+
+      var response = {cid: event.cid};
+      if (service.validateIn && !service.validateIn(event.body)) {
+        response.data = {message: 'Validation errors', errors: service.validateIn.errors};
+        response.code = 400;
+        bus.send(responseChannelName, response);
+        return
+      }
+
       service.task(event, function(err, result) {
-        var response = {cid: event.cid};
         if (err) {
           response.data = {message: err.message};
           response.code = 500;
@@ -48,6 +59,7 @@ module.exports = function(rootApp) {
     }
   }
 
+  // HTTP response
   function responseHandler() {
     return function(event) {
       var res = waitQueue[event.cid];
@@ -84,6 +96,10 @@ module.exports = function(rootApp) {
         var service = require(serviceFileName);
         service.moduleName = moduleName;
         service.name = route.service;
+
+        if(service.schemas && service.schemas.in) {
+          service.validateIn = validator(service.schemas.in);
+        }
 
         // Wire the route to the handler that sends the event.
         moduleApp[route.method](route.path, requestHandler(channelName));

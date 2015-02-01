@@ -60,7 +60,7 @@ describe('error responses', function(){
        .end(done);
   })
 
-  it('POST respond with 500,json,data', function(done){
+  it('POST respond with 500,error', function(done){
     var data = {name: 'test'};
     request(app)
        .post('/api/error/777')
@@ -69,6 +69,19 @@ describe('error responses', function(){
        .send(data)
        .expect('Content-Type', /json/)
        .expect(500, { message: 'Something went wrong' } )
+       .end(done);
+  })
+})
+describe('error validation', function(){
+  it('POST respond with 400,error', function(done){
+    var data = {name2: 'test'};
+    request(app)
+       .post('/api/validation/777')
+       .set('Accept', 'application/json')
+       .set('content-type', 'application/x-www-form-urlencoded')
+       .send(data)
+       .expect('Content-Type', /json/)
+       .expect(400, { message: 'Validation errors', errors: [ { field: 'data.name', message: 'is required' } ] } )
        .end(done);
   })
 })
