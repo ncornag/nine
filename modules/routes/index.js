@@ -26,10 +26,10 @@ module.exports = function(rootApp) {
         ,originalUrl: req.originalUrl
       }
       logger.debug('[router] request in \'%s\'. Sending \'%s\' event to \'%s\'.', req.originalUrl, event.cid, channelName);
-      // Send event to be consumed by the worker
-      bus.send(channelName, event);
       // Wait for this cid
       waitQueue[event.cid] = res;
+      // Send event to be consumed by the worker
+      bus.send(channelName, event);
     }
   }
 
@@ -54,6 +54,7 @@ module.exports = function(rootApp) {
           response.data = result.data?result.data:result;
           response.code = result.code || 200;
         }
+        logger.debug('[service] \'%s.%s\' sending \'%s\' event to \'%s\'.', service.moduleName, service.name, event.cid, responseChannelName);
         bus.send(responseChannelName, response);
       })
     }

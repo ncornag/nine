@@ -9,12 +9,11 @@ module.exports = {
    env: env
   ,rootPath: rootPath
   ,bus: {
-    url: process.env.RABBITMQ_URL
+    impl: process.env.S_BUS || 'bus-remote'
+    ,url: process.env.RABBITMQ_URL
   }
   ,logger: {
-     level: 'info'
-    ,fileName: '/tmp/debug.log'
-    ,errorFileName: '/tmp/exceptions.log'
+     level: process.env.S_LOG || 'info'
     ,express: {
        enabled: true
       ,pattern: ':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent" :response-time ms'
