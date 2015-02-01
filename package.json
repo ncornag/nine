@@ -1,0 +1,32 @@
+{
+  "author": "Nicolás Cornaglia Schlieman",
+  "name": "sandbox",
+  "description": "",
+  "version": "0.1.0",
+  "private": true,
+  "main": "server.js",
+  "licenses": [
+    {
+      "type": "CC BY-NC-ND 3.0",
+      "url": "http://creativecommons.org/licenses/by-nc-nd/3.0/"
+    }
+  ],
+  "engines": {
+    "node": "0.10.x"
+  },
+  "dependencies": {
+    "body-parser": "~1.0.1",
+    "express": "~4.0.0",
+    "express-winston": "^0.2.12",
+    "morgan": "^1.5.1",
+    "multer": "^0.1.7",
+    "node-uuid": "^1.4.2",
+    "servicebus": "^1.0.0-rc11",
+    "winston": "^0.8.3"
+  },
+  "devDependencies": {
+    "mocha": "^2.1.0",
+    "supertest": "^0.15.0"
+  },
+  "scripts": {}
+}
