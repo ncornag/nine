@@ -5,17 +5,20 @@ var config = require('config')
     ,express = require('express')
     ,bus = require('bus')
     ,util = require('util')
+    ,utils = require('utils')
     ,logger = require('logger')
     ,newId = require('node-uuid')
     ,validator = require('is-my-json-valid');
 
 module.exports = function(rootApp) {
 
+  var serverId = utils.newShortId();
   var waitQueue = {};
 
   // HTTP request reception
-  function requestHandler(channelName) {
+  function requestHandler(queueName) {
     return function(req, res, next) {
+      var responseQueueName = util.format('%s.%s.RESPONSE', queueName, serverId);
       var event = {
         method: req.method
         ,params: req.params
@@ -24,25 +27,29 @@ module.exports = function(rootApp) {
         ,headers: req.headers
         ,cid: newId()
         ,originalUrl: req.originalUrl
+        ,replyTo: responseQueueName
       }
-      logger.debug('[router] request in \'%s\'. Sending \'%s\' event to \'%s\'.', req.originalUrl, event.cid, channelName);
+      logger.debug('[router] [%s] request [%s] [%s] [%s]', serverId, event.cid, queueName, req.originalUrl);
       // Wait for this cid
       waitQueue[event.cid] = res;
+      //var options = {
+      //  replyTo: responseQueueName
+      //}
       // Send event to be consumed by the worker
-      bus.send(channelName, event);
+      bus.send(queueName, event); //, options);
     }
   }
 
   // Message reception and worker execution
-  function serviceHandler(responseChannelName, service) {
+  function serviceHandler(responseQueueName, service) {
     return function(event) {
-      logger.debug('[service] \'%s.%s\' received \'%s\' event.', service.moduleName, service.name, event.cid);
+      logger.debug('[service] [%s] received [%s] [%s.%s]', serverId, event.cid, service.moduleName, service.name);
 
       var response = {cid: event.cid};
       if (service.validateIn && !service.validateIn(event.body)) {
         response.data = {message: 'Validation errors', errors: service.validateIn.errors};
         response.code = 400;
-        bus.send(responseChannelName, response);
+        bus.send(responseQueueName, response);
         return
       }
 
@@ -54,8 +61,8 @@ module.exports = function(rootApp) {
           response.data = result.data?result.data:result;
           response.code = result.code || 200;
         }
-        logger.debug('[service] \'%s.%s\' sending \'%s\' event to \'%s\'.', service.moduleName, service.name, event.cid, responseChannelName);
-        bus.send(responseChannelName, response);
+        logger.debug('[service] [%s] result [%s] [%s.%s]', serverId, event.cid, service.moduleName, service.name);
+        bus.send(event.replyTo, response);
       })
     }
   }
@@ -65,12 +72,12 @@ module.exports = function(rootApp) {
     return function(event) {
       var res = waitQueue[event.cid];
       if (res) {
-        logger.debug('[router] response \'%s\'', event.cid);
+        logger.debug('[router] [%s] response [%s] [%s]', serverId, event.cid, res.req.originalUrl);
         res.setHeader('Content-Type', 'application/json');
         res.send(event.code, event.data);
         delete waitQueue[event.cid];
       } else {
-        logger.error('[router] not found \'%s\' event', event.cid)
+        logger.error('[router] [%s] not found [%s] event', serverId, event.cid)
       }
     }
   }
@@ -90,8 +97,8 @@ module.exports = function(rootApp) {
       module.routes.forEach(function(route){
         logger.debug('[router] bootstrapping [%s.%s] service in \'%s/%s%s\' (%s)', moduleName, route.service, config.services.apiRootPath, moduleName, route.path, route.method)
 
-        var channelName = util.format('%s.%s', moduleName, route.service);
-        var responseChannelName = util.format('%s.RESPONSE', channelName);
+        var queueName = util.format('%s.%s', moduleName, route.service);
+        var responseQueueName = util.format('%s.%s.RESPONSE', queueName, serverId);
         var serviceFileName = util.format('%s/%s/handlers/%s.js', config.services.basePath, moduleName, route.service)
 
         var service = require(serviceFileName);
@@ -103,13 +110,13 @@ module.exports = function(rootApp) {
         }
 
         // Wire the route to the handler that sends the event.
-        moduleApp[route.method](route.path, requestHandler(channelName));
+        moduleApp[route.method](route.path, requestHandler(queueName));
 
         // Worker listener
-        bus.listen(channelName, serviceHandler(responseChannelName, service));
+        bus.listen(queueName, serviceHandler(responseQueueName, service));
 
         // Response listener
-        bus.listen(responseChannelName, responseHandler());
+        bus.listen(responseQueueName, responseHandler());
 
       })
       rootApp.use(config.services.apiRootPath + '/' + moduleName, moduleApp)
