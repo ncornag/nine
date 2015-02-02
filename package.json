@@ -1,19 +1,18 @@
 {
-  "author": "Nicolás Cornaglia Schlieman",
-  "name": "sandbox",
-  "description": "",
+  "name": "nine",
+  "description": "Absolutely biased Node.js Microservices framework.",
   "version": "0.1.0",
-  "private": true,
-  "main": "server.js",
-  "licenses": [
-    {
-      "type": "CC BY-NC-ND 3.0",
-      "url": "http://creativecommons.org/licenses/by-nc-nd/3.0/"
-    }
-  ],
-  "engines": {
-    "node": "0.10.x"
+  "author": {
+    "name": "Nicolás Cornaglia Schlieman",
+    "email": "ncornag@gmail.com",
+    "url": "https://github.com/ncornag"
   },
+  "license": "CC-BY-4.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ncornag/nine"
+  },
+  "main": "NODE_PATH=modules server.js",
   "dependencies": {
     "body-parser": "~1.0.1",
     "express": "~4.0.0",
@@ -29,5 +28,7 @@
     "mocha": "^2.1.0",
     "supertest": "^0.15.0"
   },
-  "scripts": {}
+  "scripts": {
+    "test": "NODE_PATH=modules NODE_ENV=test node_modules/mocha/bin/mocha"
+  }
 }
