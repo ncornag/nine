@@ -26,5 +26,8 @@ module.exports = {
   ,services: {
     apiRootPath: '/api'
     ,basePath: rootPath + '/services'
+    ,modules: [
+      {name: 'user2', module: 'nine-service-example-user', route: 'user3'}
+    ]
   }
 }

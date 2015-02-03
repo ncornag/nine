@@ -82,28 +82,34 @@ module.exports = function(rootApp) {
     }
   }
 
+  function bootstrapServices(modules, path) {
+    modules.forEach(function(moduleData){
 
-  // Bootstrap modules
-  fs.readdir(config.services.basePath, function(err, files) {
-    if (err) {
-      logger.error('[router]', err)
-      return;
-    }
-    files.forEach(function(moduleName){
-      logger.info('[router] bootstrapping [%s] module', moduleName)
-      var module = require(config.services.basePath + '/' + moduleName);
+      var isLocal = path!=undefined;
+
+      var modulePath = isLocal?(path + '/' + moduleData):config.rootPath+'/node_modules/' + moduleData.module;
+      var module = require(modulePath);
+      if(isLocal) {
+        module.name = module.name || moduleData;
+        module.route = module.route || module.name;
+      } else {
+        module.name = moduleData.name || module.name || moduleData.name;
+        module.route = moduleData.route || module.route || module.name;
+      }
+      logger.info('[router] bootstrapping [%s] module in [%s/%s]', module.name, config.services.apiRootPath, module.route);
 
       var moduleApp = express.Router();
       module.routes.forEach(function(route){
-        logger.debug('[router] bootstrapping [%s.%s] service in \'%s/%s%s\' (%s)', moduleName, route.service, config.services.apiRootPath, moduleName, route.path, route.method)
 
-        var queueName = util.format('%s.%s', moduleName, route.service);
+        var queueName = util.format('%s.%s', module.name, route.service);
         var responseQueueName = util.format('%s.%s.RESPONSE', queueName, serverId);
-        var serviceFileName = util.format('%s/%s/handlers/%s.js', config.services.basePath, moduleName, route.service)
+        var serviceFileName = util.format('%s/handlers/%s.js', modulePath, route.service)
 
         var service = require(serviceFileName);
-        service.moduleName = moduleName;
+        service.moduleName = module.name;
         service.name = route.service;
+
+        logger.debug('[router] bootstrapping [%s.%s] service in \'%s%s\' (%s)', module.name, route.service, module.route, route.path, route.method)
 
         if(service.schemas && service.schemas.in) {
           service.validateIn = validator(service.schemas.in);
@@ -119,9 +125,24 @@ module.exports = function(rootApp) {
         bus.listen(responseQueueName, responseHandler());
 
       })
-      rootApp.use(config.services.apiRootPath + '/' + moduleName, moduleApp)
+      rootApp.use(config.services.apiRootPath + '/' + module.route, moduleApp);
 
     })
-  })
+  }
+
+  // Bootstrap services
+  if (config.services.basePath) {
+    fs.readdir(config.services.basePath, function(err, files) {
+      if (err) {
+        logger.error('[router]', err)
+        return;
+      }
+      bootstrapServices(files, config.services.basePath);
+    })
+  }
+
+  if (config.services.modules) {
+    bootstrapServices(config.services.modules);
+  }
 
 };
