@@ -1,0 +1,22 @@
+{
+  "bus": {
+    "impl": "bus-local"
+    ,"url": "amqp://localhost/"
+  }
+  ,"logger": {
+     "level": "info"
+    ,"express": {
+       "enabled": true
+      ,"pattern": ":remote-addr - :remote-user [:date[clf]] \":method :url HTTP/:http-version\" :status :res[content-length] \":referrer\" \":user-agent\" :response-time ms"
+    }
+  }
+  ,"PORT": 3000
+  ,"IP": "0.0.0.0"
+  ,"services": {
+    "apiRootPath": "/api"
+    ,"basePath": "services"
+    ,"modules": [
+      {"name": "user2", "module": "nine-service-example-user", "route": "user3"}
+    ]
+  }
+}

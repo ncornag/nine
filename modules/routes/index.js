@@ -1,16 +1,13 @@
 'use strict';
 
-var config = require('config')
-    ,fs = require('fs')
+var fs = require('fs')
     ,express = require('express')
-    ,bus = require('bus')
     ,util = require('util')
     ,utils = require('utils')
-    ,logger = require('logger')
     ,newId = require('node-uuid')
     ,validator = require('is-my-json-valid');
 
-module.exports = function(rootApp) {
+module.exports = function(nine) {
 
   var serverId = utils.newShortId();
   var waitQueue = {};
@@ -29,27 +26,27 @@ module.exports = function(rootApp) {
         ,originalUrl: req.originalUrl
         ,replyTo: responseQueueName
       }
-      logger.debug('[router] [%s] request [%s] [%s] [%s]', serverId, event.cid, queueName, req.originalUrl);
+      nine.logger.debug('[router] [%s] request [%s] [%s] [%s]', serverId, event.cid, queueName, req.originalUrl);
       // Wait for this cid
       waitQueue[event.cid] = res;
       //var options = {
       //  replyTo: responseQueueName
       //}
       // Send event to be consumed by the worker
-      bus.send(queueName, event); //, options);
+      nine.bus.send(queueName, event); //, options);
     }
   }
 
   // Message reception and worker execution
   function serviceHandler(responseQueueName, service) {
     return function(event) {
-      logger.debug('[service] [%s] received [%s] [%s.%s]', serverId, event.cid, service.moduleName, service.name);
+      nine.logger.debug('[service] [%s] received [%s] [%s.%s]', serverId, event.cid, service.moduleName, service.name);
 
       var response = {cid: event.cid};
       if (service.validateIn && !service.validateIn(event.body)) {
         response.data = {message: 'Validation errors', errors: service.validateIn.errors};
         response.code = 400;
-        bus.send(responseQueueName, response);
+        nine.bus.send(responseQueueName, response);
         return
       }
 
@@ -61,8 +58,8 @@ module.exports = function(rootApp) {
           response.data = result.data?result.data:result;
           response.code = result.code || 200;
         }
-        logger.debug('[service] [%s] result [%s] [%s.%s]', serverId, event.cid, service.moduleName, service.name);
-        bus.send(event.replyTo, response);
+        nine.logger.debug('[service] [%s] result [%s] [%s.%s]', serverId, event.cid, service.moduleName, service.name);
+        nine.bus.send(event.replyTo, response);
       })
     }
   }
@@ -72,12 +69,12 @@ module.exports = function(rootApp) {
     return function(event) {
       var res = waitQueue[event.cid];
       if (res) {
-        logger.debug('[router] [%s] response [%s] [%s]', serverId, event.cid, res.req.originalUrl);
+        nine.logger.debug('[router] [%s] response [%s] [%s]', serverId, event.cid, res.req.originalUrl);
         res.setHeader('Content-Type', 'application/json');
         res.send(event.code, event.data);
         delete waitQueue[event.cid];
       } else {
-        logger.error('[router] [%s] not found [%s] event', serverId, event.cid)
+        nine.logger.error('[router] [%s] not found [%s] event', serverId, event.cid)
       }
     }
   }
@@ -87,7 +84,7 @@ module.exports = function(rootApp) {
 
       var isLocal = path!=undefined;
 
-      var modulePath = isLocal?(path + '/' + moduleData):config.rootPath+'/node_modules/' + moduleData.module;
+      var modulePath = isLocal?(path + '/' + moduleData):nine.config.get('rootPath') + '/node_modules/' + moduleData.module;
       var module = require(modulePath);
       if(isLocal) {
         module.name = module.name || moduleData;
@@ -96,7 +93,7 @@ module.exports = function(rootApp) {
         module.name = moduleData.name || module.name || moduleData.name;
         module.route = moduleData.route || module.route || module.name;
       }
-      logger.info('[router] bootstrapping [%s] module in [%s/%s]', module.name, config.services.apiRootPath, module.route);
+      nine.logger.info('[router] bootstrapping [%s] module in [%s/%s]', module.name, nine.config.get('services:apiRootPath'), module.route);
 
       var moduleApp = express.Router();
       module.routes.forEach(function(route){
@@ -109,7 +106,7 @@ module.exports = function(rootApp) {
         service.moduleName = module.name;
         service.name = route.service;
 
-        logger.debug('[router] bootstrapping [%s.%s] service in \'%s%s\' (%s)', module.name, route.service, module.route, route.path, route.method)
+        nine.logger.debug('[router] bootstrapping [%s.%s] service in \'%s%s\' (%s)', module.name, route.service, module.route, route.path, route.method)
 
         if(service.schemas && service.schemas.in) {
           service.validateIn = validator(service.schemas.in);
@@ -119,30 +116,34 @@ module.exports = function(rootApp) {
         moduleApp[route.method](route.path, requestHandler(queueName));
 
         // Worker listener
-        bus.listen(queueName, serviceHandler(responseQueueName, service));
+        nine.bus.listen(queueName, serviceHandler(responseQueueName, service));
 
         // Response listener
-        bus.listen(responseQueueName, responseHandler());
+        nine.bus.listen(responseQueueName, responseHandler());
 
       })
-      rootApp.use(config.services.apiRootPath + '/' + module.route, moduleApp);
+      nine.app.use(nine.config.get('services:apiRootPath') + '/' + module.route, moduleApp);
 
     })
   }
 
   // Bootstrap services
-  if (config.services.basePath) {
-    fs.readdir(config.services.basePath, function(err, files) {
+  if (nine.config.get('services:basePath')) {
+    var basePath = nine.config.get('services:basePath');
+    if (basePath.indexOf('/')!=0) {
+      basePath = nine.config.get('rootPath') + '/' + basePath;
+    }
+    fs.readdir(basePath, function(err, files) {
       if (err) {
-        logger.error('[router]', err)
+        nine.logger.error('[router]', err)
         return;
       }
-      bootstrapServices(files, config.services.basePath);
+      bootstrapServices(files, basePath);
     })
   }
 
-  if (config.services.modules) {
-    bootstrapServices(config.services.modules);
+  if (nine.config.get('services:modules')) {
+    bootstrapServices(nine.config.get('services:modules'));
   }
 
 };

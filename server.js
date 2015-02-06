@@ -1,8 +1,12 @@
 'use strict';
 
-var config = require('config');
-var logger = require('logger');
+var config = require('config')([
+  'modules/config/' + (process.env.NODE_ENV || 'local') + '.json'
+  ,'modules/config/defaults.json'
+])
 
-var app = require('expressapp');
+var nine = require('nine')({
+  config: config
+});
 
-module.exports = app
+module.exports = nine.app;  // easy testing.

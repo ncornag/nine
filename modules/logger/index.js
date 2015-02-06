@@ -1,14 +1,17 @@
-var config = require('config')
-   ,winston = require('winston')
+var winston = require('winston')
 
-module.exports = new (winston.Logger)({
-  transports: [
-    new (winston.transports.Console)({ level: config.logger.level, json: false, timestamp: true, colorize: true })
-  ],
-  exceptionHandlers: [
-    new (winston.transports.Console)({ level: config.logger.level, json: false, timestamp: true, colorize: true, silent: false, prettyPrint: true  })
-  ],
-  exitOnError: false
-});
+module.exports = function(nine) {
+  var level = nine.config.get('logger:level');
+  var logger = new (winston.Logger)({
+    transports: [
+      new (winston.transports.Console)({ level: level, json: false, timestamp: true, colorize: true })
+    ],
+    exceptionHandlers: [
+      new (winston.transports.Console)({ level: level, json: false, timestamp: true, colorize: true, silent: false, prettyPrint: true  })
+    ],
+    exitOnError: false
+  });
+  logger.info('[logger] initialized with [%s] level', level);
+  return logger;
+}
 
-module.exports.info('[logger] initialized with [%s] level', config.logger.level)

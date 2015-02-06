@@ -1,0 +1,12 @@
+{
+  "logger": {
+    "express": {
+      "enabled": false
+    }
+  }
+  ,"services": {
+    "basePath": "test/services"
+  }
+}
+
+

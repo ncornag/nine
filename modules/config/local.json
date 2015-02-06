@@ -1,0 +1,8 @@
+{
+  "logger": {
+    "level": "debug"
+    ,"express": {
+      "enabled": false
+    }
+  }
+}
