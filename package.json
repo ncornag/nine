@@ -12,7 +12,7 @@
     "type": "git",
     "url": "https://github.com/ncornag/nine"
   },
-  "main": "NODE_PATH=modules server.js",
+  "main": "./lib/nine",
   "dependencies": {
     "body-parser": "~1.0.1",
     "express": "~4.0.0",
@@ -31,7 +31,6 @@
     "supertest": "^0.15.0"
   },
   "scripts": {
-    "postinstall": "cp -R services/user/ node_modules/nine-service-example-user",
-    "test": "NODE_PATH=modules NODE_ENV=test node_modules/mocha/bin/mocha"
+    "test": "node_modules/mocha/bin/mocha"
   }
 }

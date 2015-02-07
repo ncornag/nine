@@ -15,8 +15,5 @@
   ,"services": {
     "apiRootPath": "/api"
     ,"basePath": "services"
-    ,"modules": [
-      {"name": "user2", "module": "nine-service-example-user", "route": "user3"}
-    ]
   }
 }

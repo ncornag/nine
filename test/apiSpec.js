@@ -2,7 +2,7 @@
 
 var request = require('supertest');
 
-var app = require('../server.js');
+var app = require('./server.js');
 
 describe('normal responses', function(){
   it('GET respond with 200,json,data', function(done){

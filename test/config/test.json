@@ -5,7 +5,7 @@
     }
   }
   ,"services": {
-    "basePath": "test/services"
+    "basePath": "services"
   }
 }
 
